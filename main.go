@@ -16,7 +16,7 @@ type Couch struct {
 	Address string `default:"http://100.102.100.49:5984"`
 }
 
-type DB struct {
+type CouchDB struct {
 	C    Couch
 	Name string
 }
@@ -34,42 +34,112 @@ func (c Couch) Login() {
 	if err != nil {
 		fmt.Printf("%s", err)
 	}
-	reqBody, _ := ioutil.ReadAll(res.Body)
+	reqBody, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		fmt.Printf("%s", err)
+	}
+
 	defer res.Body.Close()
 
 	fmt.Printf("%s", reqBody)
 }
 
 func (c Couch) Get(path string) []byte {
-	res, _ := c.Client.Get(c.Address + "/" + path)
-	reqBody, _ := ioutil.ReadAll(res.Body)
+	res, err := c.Client.Get(c.Address + "/" + path)
+	if err != nil {
+		fmt.Printf("%s", err)
+	}
+	reqBody, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		fmt.Printf("%s", err)
+	}
+
 	return reqBody
 }
 
 func (c Couch) NewDB(DBname string) []byte {
-	req, _ := http.NewRequest("PUT", c.Address+"/"+DBname, nil)
-	res, _ := c.Client.Do(req)
-	reqBody, _ := ioutil.ReadAll(res.Body)
+	req, err := http.NewRequest("PUT", c.Address+"/"+DBname, nil)
+	if err != nil {
+		fmt.Printf("%s", err)
+	}
+
+	res, err := c.Client.Do(req)
+	if err != nil {
+		fmt.Printf("%s", err)
+	}
+
+	reqBody, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		fmt.Printf("%s", err)
+	}
+
 	return reqBody
 }
 
-func (d DB) Doc(DB string, ID string, body map[string]interface{}) []byte {
-	docBody, _ := json.Marshal(body)
-	req, _ := http.NewRequest("PUT", d.C.Address+"/"+DB+"/"+ID, bytes.NewBuffer(docBody))
-	res, _ := d.C.Client.Do(req)
-	reqBody, _ := ioutil.ReadAll(res.Body)
+func (d CouchDB) Add(ID string, body map[string]interface{}) []byte {
+	docBody, err := json.Marshal(body)
+	if err != nil {
+		fmt.Printf("%s", err)
+	}
+
+	req, err := http.NewRequest("PUT", d.C.Address+"/"+d.Name+"/"+ID, bytes.NewBuffer(docBody))
+	if err != nil {
+		fmt.Printf("%s", err)
+	}
+
+	res, err := d.C.Client.Do(req)
+	if err != nil {
+		fmt.Printf("%s", err)
+	}
+
+	reqBody, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		fmt.Printf("%s", err)
+	}
+
+	return reqBody
+}
+
+func (d CouchDB) Delete(ID string) []byte {
+	req, err := http.NewRequest("DELETE", d.C.Address+"/"+d.Name+"/"+ID, nil)
+	if err != nil {
+		fmt.Printf("%s", err)
+	}
+
+	res, err := d.C.Client.Do(req)
+	if err != nil {
+		fmt.Printf("%s", err)
+	}
+
+	reqBody, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		fmt.Printf("%s", err)
+	}
+
 	return reqBody
 }
 
 func InitCouch() Couch {
 	c := new(Couch)
-	Jar, _ := cookiejar.New(nil)
+	Jar, err := cookiejar.New(nil)
+	if err != nil {
+		fmt.Printf("%s", err)
+	}
+
 	c.Client = http.Client{
 		Jar: Jar,
 	}
 	c.Address = "http://100.102.100.49:5984"
 	c.Login()
 	return *c
+}
+
+func InitCouchDB(name string) CouchDB {
+	c := InitCouch()
+	d := new(CouchDB)
+	d.C = c
+	d.Name = name
+	return *d
 }
 
 func loadFile(filepath string) map[string]interface{} {
@@ -95,10 +165,10 @@ func main() {
 	couch := InitCouch()
 	//couch.NewDB("testes")
 	//fmt.Printf("%s", db)
-	testesDB := DB{couch, "testes"}
+	testesDB := CouchDB{couch, "testes"}
 	body := loadFile("./test.json")
 	idd := fmt.Sprintf("%s", body["_id"])
-	doc := testesDB.Doc("testes", idd, body)
+	doc := testesDB.Add(idd, body)
 	fmt.Printf("%s", doc)
 	ge := couch.Get("testes/roa")
 	fmt.Printf("%s", ge)
